@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Clinician View V3 — PatientPass Prototype</title>
+<!-- Self-contained prototype. No build step, no npm/Leyden deps.
+     React + Babel are loaded from a CDN so the file runs by double-click or as a Claude artifact.
+     Everything else (markup, styles, data, icons, logo) is inline and editable below. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js" crossorigin></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Helvetica Neue", Arial, "Segoe UI", system-ui, sans-serif;
+    color: #2e2e2e;
+    background: #fff;
+  }
+
+  :root {
+    --cv-orange: #e9711c;
+    --cv-teal: #007398;
+    --cv-teal-dark: #005f7e;
+    --cv-green: #158509;
+    --cv-red: #c63527;
+    --cv-text: #2e2e2e;
+    --cv-muted: #737373;
+    --cv-border: #d9dde1;
+    --cv-filter-bg: #eaf2fb;
+    --cv-page-max: 1200px;
+  }
+
+  /* Inline icons inherit color via currentColor; specific fills below override. */
+  .cv-icon { display: inline-block; fill: currentColor; color: #5e6373; flex: none; vertical-align: middle; }
+
+  .cv-page { min-height: 100vh; display: flex; flex-direction: column; background: #fff; color: var(--cv-text); }
+
+  /* ---------- Header ---------- */
+  .cv-header { border-bottom: 1px solid var(--cv-border); background: #fff; }
+  .cv-header__inner { max-width: var(--cv-page-max); margin: 0 auto; height: 80px; display: flex; align-items: center; gap: 2rem; padding: 0 1.5rem; }
+  .cv-logo { border: 0; background: none; cursor: pointer; padding: 0; display: inline-flex; align-items: center; }
+  .cv-logo__img { height: 26px; width: auto; display: block; }
+  .cv-search { display: flex; flex: 1; max-width: 420px; height: 44px; border: 1px solid var(--cv-border); border-radius: 2px; }
+  .cv-search__input { flex: 1; border: 0; padding: 0 0.9rem; font-size: 0.95rem; outline: none; background: transparent; }
+  .cv-search__btn { width: 48px; border: 0; background: var(--cv-teal); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .cv-search__btn .cv-icon { fill: #fff; color: #fff; }
+  .cv-nav { display: flex; align-items: center; gap: 1.75rem; margin-left: auto; }
+  .cv-nav__link { text-decoration: none; color: var(--cv-text); font-size: 1rem; padding-bottom: 2px; border-bottom: 3px solid transparent; background: none; border-top: 0; border-left: 0; border-right: 0; cursor: pointer; font-family: inherit; }
+  .cv-nav__link.is-active { border-bottom-color: var(--cv-orange); font-weight: 600; }
+  .cv-nav__cart { border: 0; background: none; cursor: pointer; display: flex; align-items: center; }
+  .cv-nav__cart .cv-icon { color: var(--cv-teal); }
+
+  /* ---------- Links ---------- */
+  .cv-link { color: var(--cv-teal); text-decoration: none; cursor: pointer; }
+  .cv-link:hover { text-decoration: underline; }
+  .cv-link--deleted { color: var(--cv-red); }
+
+  /* ---------- Homescreen layout ---------- */
+  .cv-home { flex: 1; width: 100%; max-width: var(--cv-page-max); margin: 0 auto; display: flex; align-items: stretch; }
+  .cv-sidebar { width: 256px; flex: none; border-right: 1px solid var(--cv-border); padding: 1.25rem 1.5rem; background: #fafbfc; }
+  .cv-sidebar__head { display: flex; align-items: center; gap: 0.4rem; font-weight: 700; margin-bottom: 1.25rem; }
+  .cv-context-group { border-top: 1px solid var(--cv-border); padding: 0.4rem 0; }
+  .cv-context-group:first-of-type { border-top: 0; }
+  .cv-context-group__toggle { width: 100%; display: flex; align-items: center; gap: 0.5rem; background: none; border: 0; cursor: pointer; padding: 0.5rem 0; font-size: 0.95rem; color: var(--cv-text); font-family: inherit; }
+  .cv-context-group__label { font-weight: 600; }
+  .cv-context-group__toggle .cv-icon:last-child { margin-left: auto; }
+  .cv-context-group__items { list-style: none; margin: 0.25rem 0 0.5rem; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+  .cv-context-link { color: var(--cv-text); text-decoration: none; font-size: 0.92rem; }
+  .cv-context-link.is-active { color: var(--cv-text); font-weight: 600; border-bottom: 2px solid var(--cv-orange); padding-bottom: 1px; }
+  .cv-context-link:hover { color: var(--cv-teal); }
+  .cv-home__content { flex: 1; min-width: 0; }
+
+  /* count pill */
+  .cv-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--cv-teal); color: #fff; font-size: 0.78rem; font-weight: 700; }
+
+  /* ---------- Filters bar ---------- */
+  .cv-filters { background: var(--cv-filter-bg); padding: 0.85rem 1.5rem 1rem; }
+  .cv-filters__row { display: flex; align-items: center; gap: 1.25rem; }
+  .cv-filters__label { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; }
+  .cv-filters__clear { margin-left: auto; }
+  .cv-filters__checks { display: flex; flex-wrap: wrap; gap: 1.25rem; margin: 0.6rem 0 0.75rem; }
+  .cv-check { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; cursor: pointer; }
+  .cv-check input { width: 16px; height: 16px; accent-color: var(--cv-teal); }
+  .cv-filters__patient { display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; }
+  .cv-filters__chip { display: inline-flex; align-items: center; gap: 0.3rem; background: #fff; border: 1px solid var(--cv-border); border-radius: 2px; padding: 0.2rem 0.5rem; }
+
+  /* ---------- Results / table ---------- */
+  .cv-home__results { padding: 1.5rem; }
+  .cv-results-summary { margin: 0 0 1.25rem; font-size: 0.95rem; }
+  .cv-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+  .cv-table thead th { text-align: left; font-weight: 600; color: var(--cv-muted); padding: 0 0.75rem 0.85rem; vertical-align: bottom; border-bottom: 2px solid #c4cad1; }
+  .cv-table tbody td { padding: 0.85rem 0.75rem; border-bottom: 1px solid var(--cv-border); vertical-align: middle; }
+  .cv-table__col-fav { width: 44px; }
+  .cv-table__col-shared { white-space: nowrap; width: 120px; }
+  .cv-table__col-lang { width: 120px; }
+  .cv-table__col-actions { width: 150px; }
+  .cv-table__col-add { width: 90px; text-align: center; }
+  .cv-table__actions-head { display: inline-flex; align-items: center; gap: 0.3rem; }
+  .cv-table__actions-sub { font-weight: 400; }
+  .cv-lang { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--cv-text); }
+
+  /* ---------- Favorite stars ---------- */
+  .cv-fav { display: inline-flex; align-items: center; justify-content: center; }
+  .cv-fav--favorite .cv-icon, .cv-fav--none .cv-icon, .cv-fav--org .cv-icon { fill: var(--cv-teal); color: var(--cv-teal); }
+  .cv-fav--org { width: 28px; height: 28px; border: 2px dashed var(--cv-orange); border-radius: 50%; }
+
+  /* ---------- Quick actions + add ---------- */
+  .cv-quick-actions { display: inline-flex; gap: 1.1rem; }
+  .cv-quick-actions .cv-icon { color: var(--cv-teal); }
+  .cv-icon-btn { border: 0; background: none; cursor: pointer; padding: 0.2rem; display: inline-flex; align-items: center; justify-content: center; }
+  .cv-icon-btn:hover .cv-icon { opacity: 0.7; }
+  .cv-add-btn { width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--cv-teal); color: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .cv-add-btn .cv-icon { fill: #fff; color: #fff; }
+  .cv-add-btn:hover { background: var(--cv-teal-dark); }
+
+  /* ---------- Pagination ---------- */
+  .cv-pagination { display: flex; align-items: center; gap: 0.5rem; margin-top: 2rem; font-size: 0.95rem; }
+  .cv-pagination button { border: 0; background: none; cursor: pointer; color: var(--cv-teal); display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.35rem 0.5rem; font-family: inherit; font-size: 0.95rem; }
+  .cv-pagination button:disabled { color: var(--cv-muted); cursor: default; }
+  .cv-pagination button:disabled .cv-icon { color: var(--cv-muted); }
+  .cv-pagination__page { min-width: 28px; justify-content: center; }
+  .cv-pagination__page.is-active { color: var(--cv-text); font-weight: 700; border-bottom: 2px solid var(--cv-orange); }
+
+  /* ---------- My Favorites ---------- */
+  .cv-favorites { flex: 1; width: 100%; max-width: var(--cv-page-max); margin: 0 auto; padding: 2rem 1.5rem 3rem; }
+  .cv-favorites__title { font-size: 2.25rem; font-weight: 700; margin: 0 0 1.5rem; }
+  .cv-favorites__columns { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 2rem; align-items: start; }
+  .cv-favorites__divider { background: var(--cv-border); align-self: stretch; }
+  .cv-favorites__heading { font-size: 1.4rem; font-weight: 700; margin: 0 0 0.75rem; }
+
+  /* ---------- Education History ---------- */
+  .cv-history { flex: 1; width: 100%; max-width: var(--cv-page-max); margin: 0 auto; padding: 2rem 1.5rem 3rem; }
+  .cv-history__title { font-size: 1.9rem; font-weight: 400; margin: 0 0 1.75rem; }
+  .cv-history__title strong { font-weight: 700; }
+  .cv-history-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+  .cv-history-table thead th { text-align: left; color: var(--cv-muted); font-weight: 600; padding: 0.5rem 1rem 0.85rem; border-bottom: 2px solid #c4cad1; }
+  .cv-history-table tbody td { padding: 1rem; border-bottom: 1px solid var(--cv-border); vertical-align: top; }
+  .cv-history-table__date { white-space: nowrap; width: 130px; }
+  .cv-sortable, .cv-th-info { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--cv-teal); }
+  .cv-th-info { color: var(--cv-muted); }
+  .cv-history-titles { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.85rem; }
+  .cv-history-titles li { display: flex; align-items: center; gap: 0.45rem; }
+  .cv-history-lang { color: var(--cv-muted); }
+  .cv-delivery-deleted { display: flex; align-items: center; gap: 0.35rem; color: var(--cv-red); font-style: italic; font-weight: 600; margin-bottom: 0.35rem; }
+  .cv-delivery-deleted .cv-icon { color: var(--cv-red); }
+  .cv-delivery-method { display: block; }
+
+  /* status dots */
+  .cv-status-dot { width: 16px; height: 16px; border-radius: 50%; flex: none; }
+  .cv-status-dot--not-started { border: 2px solid var(--cv-muted); }
+  .cv-status-dot--in-progress { border: 2px solid var(--cv-teal); background: linear-gradient(90deg, var(--cv-teal) 50%, #fff 50%); }
+  .cv-status-dot--completed { background: var(--cv-green); }
+  .cv-status-dot--deleted { border: 2px solid var(--cv-red); background: var(--cv-red); }
+
+  /* progress badges */
+  .cv-progress { display: inline-block; padding: 0.35rem 1rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+  .cv-progress--none { border: 1px solid var(--cv-muted); color: var(--cv-text); background: #fff; }
+  .cv-progress--in-progress { background: var(--cv-teal); color: #fff; }
+  .cv-progress--completed { background: var(--cv-green); color: #fff; }
+  .cv-progress--deleted { background: var(--cv-red); color: #fff; }
+
+  /* ---------- Footer ---------- */
+  .cv-footer { border-top: 3px solid var(--cv-orange); margin-top: auto; }
+  .cv-footer__inner { max-width: var(--cv-page-max); margin: 0 auto; padding: 1.5rem; display: flex; gap: 1.5rem; align-items: flex-start; font-size: 0.8rem; color: var(--cv-muted); }
+  .cv-footer__brand, .cv-footer__relx { font-weight: 700; color: var(--cv-orange); white-space: nowrap; }
+  .cv-footer__relx { margin-left: auto; }
+  .cv-footer__content { flex: 1; }
+  .cv-footer__links { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 0.75rem; }
+  .cv-footer__links a { color: var(--cv-text); text-decoration: none; }
+  .cv-footer__links a:hover { text-decoration: underline; }
+  .cv-footer__copy { margin: 0; line-height: 1.5; }
+
+  /* ---------- Toast ---------- */
+  .cv-toast-region { position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.75rem; max-width: 380px; }
+  .cv-toast { display: flex; align-items: center; gap: 1rem; background: #fff; border: 1px solid var(--cv-border); border-top: 4px solid var(--cv-green); padding: 1rem 1.25rem; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); border-radius: 2px; animation: cv-toast-in 0.2s ease-out; }
+  .cv-toast--error { border-top-color: var(--cv-red); }
+  .cv-toast__message { flex: 1; font-size: 0.95rem; color: var(--cv-text); }
+  .cv-toast__close { border: 0; background: none; cursor: pointer; display: inline-flex; padding: 0.2rem; }
+  .cv-toast__close .cv-icon { fill: var(--cv-teal); color: var(--cv-teal); }
+  @keyframes cv-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ---------- Modal (replaces Leyden Modal) ---------- */
+  .cv-modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 900; padding: 1rem; }
+  .cv-modal { background: #fff; border-radius: 4px; border-top: 4px solid var(--cv-orange); max-width: 80vw; max-height: 92vh; overflow: auto; padding: 1.5rem 1.75rem 1.75rem; position: relative; box-shadow: 0 10px 36px rgba(0, 0, 0, 0.28); }
+  .cv-modal__close { position: absolute; top: 0.85rem; right: 0.85rem; border: 1px solid var(--cv-teal); border-radius: 4px; background: none; cursor: pointer; display: inline-flex; padding: 0.2rem; }
+  .cv-modal__close .cv-icon { fill: var(--cv-teal); color: var(--cv-teal); width: 20px; height: 20px; }
+
+  /* ---------- Print modal ---------- */
+  .cv-print-modal__body { width: 720px; max-width: 76vw; display: flex; flex-direction: column; gap: 0.75rem; }
+  .cv-print-modal__title { font-size: 1.4rem; font-weight: 700; margin: 0; }
+  .cv-print-modal__subtitle { margin: 0; color: var(--cv-muted); }
+  .cv-print-modal__preview { width: 100%; height: 56vh; border: 1px solid var(--cv-border); background: #525659; }
+  .cv-print-modal__actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
+
+  /* buttons (replace Leyden Button) */
+  .cv-btn { font-family: inherit; font-size: 0.95rem; font-weight: 600; padding: 0.55rem 1.4rem; border-radius: 4px; cursor: pointer; border: 1px solid var(--cv-teal); }
+  .cv-btn--primary { background: var(--cv-teal); color: #fff; }
+  .cv-btn--primary:hover { background: var(--cv-teal-dark); }
+  .cv-btn--secondary { background: #fff; color: var(--cv-teal); }
+  .cv-btn--secondary:hover { background: #f0f6f8; }
+
+  @media (max-width: 960px) {
+    .cv-home { flex-direction: column; }
+    .cv-sidebar { width: 100%; border-right: 0; border-bottom: 1px solid var(--cv-border); }
+    .cv-favorites__columns { grid-template-columns: 1fr; }
+    .cv-favorites__divider { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, createContext, useContext, useCallback } = React;
+
+/* =====================================================================
+   DATA  (edit freely)
+   ===================================================================== */
+const PATIENT_NAME = 'Ruth Black';
+const HISTORY_PATIENT_NAME = 'Amy E Clark';
+
+const CLINICAL_CONTEXT = [
+  { label: 'Conditions', count: 16, open: true, items: ['Head injury', 'Palm abrasion', 'Diabetic neuropathy', 'Type 2 diabetes', 'Obesity', 'Tobacco dependence'], active: 'Head injury' },
+  { label: 'Medications', count: 7, open: false, items: [], active: '' },
+  { label: 'Procedures', count: 0, open: false, items: [], active: '' },
+  { label: 'Care Plans', count: 3, open: false, items: [], active: '' },
+];
+
+const EDUCATION_ROWS = [
+  { id: 'h1', title: 'Kidney Transplant, Adult', favorite: 'favorite', lastShared: 'Jan 11, 2025', language: 'English' },
+  { id: 'h2', title: 'Kidney Transplant, Adult, Care After', favorite: 'org', lastShared: 'Jan 11, 2025', language: 'English' },
+  { id: 'h3', title: 'Organ Transplantation Information', favorite: 'org', language: 'English' },
+  { id: 'h4', title: 'Transplant Rejection', favorite: 'none', language: 'English' },
+  { id: 'h5', title: 'Graft-Versus-Host Disease After Solid Organ Transplantation', favorite: 'none', language: 'English' },
+  { id: 'h6', title: 'Levofloxacin Injection', favorite: 'favorite', language: 'English' },
+  { id: 'h7', title: 'End-Stage Kidney Disease', favorite: 'favorite', language: 'English' },
+  { id: 'h8', title: 'Diabetic Nephropathy', favorite: 'org', language: 'English' },
+  { id: 'h9', title: 'Minimally Invasive Nephrectomy', favorite: 'favorite', language: 'English' },
+  { id: 'h10', title: 'BK Virus Infection, Adult', favorite: 'favorite', language: 'English' },
+];
+
+const FAVORITES_LEFT = [
+  { id: 'f1', title: 'Managing Your High Blood Pressure', favorite: 'favorite', language: 'English' },
+  { id: 'f2', title: 'Head Injury, Adult', favorite: 'org', language: 'English' },
+  { id: 'f3', title: "Meniere's Disease", favorite: 'favorite', language: 'English' },
+  { id: 'f4', title: 'Benign Positional Vertigo', favorite: 'org', language: 'English' },
+];
+
+const FAVORITES_RIGHT = [
+  { id: 'f5', title: 'What is Chronic Bronchitis?', favorite: 'favorite', language: 'English' },
+  { id: 'f6', title: 'Calcium Channel Blockers', favorite: 'favorite', language: 'English' },
+];
+
+const HISTORY_ROWS = [
+  { id: 'r1', dateShared: '22 May 2025', titles: [{ text: 'Managing Your High Blood Pressure', language: 'English', status: 'not-started', hasVideo: true }], deliveryMethod: 'Epic TV', progress: 'none' },
+  { id: 'r2', dateShared: '05 Aug 2025', titles: [{ text: "Meniere's Disease", language: 'English', status: 'in-progress' }], deliveryMethod: 'Patient portal', progress: 'in-progress' },
+  { id: 'r3', dateShared: '09 Aug 2025', titles: [{ text: 'Dehydration', language: 'English', status: 'completed' }], deliveryMethod: 'Quick Share', progress: 'completed' },
+  { id: 'r4', dateShared: '18 Sep 2025', titles: [{ text: "Meniere's Disease", language: 'English', status: 'in-progress' }, { text: "Meniere's Disease", language: 'English', status: 'in-progress' }, { text: "Meniere's Disease", language: 'English', status: 'in-progress' }], deliveryMethod: 'Quick Print', progress: 'in-progress' },
+  { id: 'r5', dateShared: '04 Oct 2025', titles: [{ text: 'Long-Term (Chronic) Back Pain: What It Means', language: 'English', status: 'deleted' }, { text: 'Head Injury, Adult', language: 'English', status: 'deleted', hasVideo: true }, { text: 'Managing Your High Blood Pressure', language: 'English', status: 'deleted', hasVideo: true }], deliveryMethod: 'Print', deliveryDeleted: true, progress: 'deleted' },
+  { id: 'r6', dateShared: '11 Nov 2025', titles: [{ text: 'Asthma and Staying Active: What to Know', language: 'English', status: 'deleted' }, { text: 'Head Injury, Adult', language: 'English', status: 'in-progress' }, { text: 'Many Mood Changes (Cyclothymic Disorder): Wh', language: 'English', status: 'not-started' }], deliveryMethod: 'Patient portal', deliveryDeleted: true, progress: 'deleted' },
+];
+
+const PROGRESS_LABEL = { none: 'No status', 'in-progress': 'In progress', completed: 'Completed', deleted: 'Deleted' };
+
+/* =====================================================================
+   ICONS  (inline SVG — replaces @els/els-react--icon)
+   ===================================================================== */
+const ICON_PATHS = {
+  CHEVRON_DOWN: 'M7 10l5 5 5-5z',
+  CHEVRON_UP: 'M7 14l5-5 5 5z',
+  CHEVRON_LEFT: 'M14 7l-5 5 5 5z',
+  CHEVRON_RIGHT: 'M10 7l5 5-5 5z',
+  CLOSE: 'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
+  ELLIPSIS: 'M6 10a2 2 0 100 4 2 2 0 000-4zm6 0a2 2 0 100 4 2 2 0 000-4zm6 0a2 2 0 100 4 2 2 0 000-4z',
+  EYE_NOT_VISIBLE: 'M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z',
+  INFORMATION_OUTLINE_CIRCLE: 'M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z',
+  INSTITUTION: 'M12 3L3 8v2h18V8l-9-5zM6 11v6H4v2h16v-2h-2v-6h-2v6h-2v-6h-2v6H8v-6z',
+  PLUS: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z',
+  PRINTER: 'M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z',
+  SEARCH: 'M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+  SHARE2: 'M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z',
+  STAR_SOLID: 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z',
+  STAR: 'M22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z',
+  VIDEO_CAMERA: 'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z',
+  SHOPPING_CART: 'M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z',
+};
+const ICON_SIZES = { XS: 14, S: 18, M: 24 };
+
+function Icon({ sprite, size = 'S' }) {
+  const px = ICON_SIZES[size] || 18;
+  return (
+    <svg className="cv-icon" width={px} height={px} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d={ICON_PATHS[sprite]} />
+    </svg>
+  );
+}
+
+function Logo() {
+  return (
+    <svg className="cv-logo__img" viewBox="0 0 155.396 21.6514" role="img" aria-label="PatientPass">
+      <g fill="#FF8200">
+        <path d="M5.71,14.1592c-0.8911,0-1.9805-0.0322-3.1025-0.165v7.2285H0V1.2871h6.4692c3.6636,0,6.7656,2.2451,6.7656,6.3047C13.2349,11.4863,9.4395,14.1592,5.71,14.1592z M5.5781,3.3994H2.6074v8.4502c0,0,1.1885,0.1318,2.1123,0.1318c2.9375,0,5.5449-0.9902,5.5449-4.3896C10.2646,4.7861,8.7134,3.3994,5.5781,3.3994z"/>
+        <path d="M26.5327,21.2227c-0.165-0.4951-0.2969-0.9902-0.3628-1.4189l-0.0991-0.627c-1.2212,1.8477-2.7065,2.4746-4.5879,2.4746c-3.5972,0-6.4028-2.7061-6.4028-7.5576c0-5.1816,2.5083-8.2188,7.1621-8.2188c1.353,0,2.8716,0.4297,3.7627,1.584l0.561-1.1875h1.98l-0.231,2.1123v8.3828c0,1.123,0.3301,3.4004,0.6934,4.4561H26.5327z M25.7739,12.8721c0-3.333-1.2212-4.8184-3.4658-4.8184c-1.188,0-4.7417,0.3752-4.4888,5.6768c0,4.291,1.9805,5.7432,4.0928,5.7432c1.6172,0,2.9043-1.1553,3.8618-3.4658V12.8721z"/>
+        <path d="M40.7554,20.8594c-0.8911,0.3965-2.2773,0.792-3.4321,0.792c-1.9473,0-3.3335-1.0889-3.3335-3.7295V8.252h-2.7065V6.2715h2.7065V2.2773h2.4751v3.9941h3.9277V8.252h-3.9277v8.8447c0,1.6836,0.4292,2.3438,1.5845,2.3438c0.792,0,1.584-0.3301,2.5083-0.6934L40.7554,20.8594z"/>
+        <path d="M44.4834,3.6641c-0.8911,0-1.6504-0.9238-1.6504-1.8486C42.833,0.9248,43.5596,0,44.4834,0c0.8911,0,1.6831,0.8584,1.6831,1.7822C46.1665,2.707,45.3745,3.6641,44.4834,3.6641z M43.2295,6.2715h2.541v14.9512h-2.541V6.2715z"/>
+        <path d="M51.8423,13.4336v0.4951c0,3.5645,1.749,5.5117,4.8843,5.5117c1.75,0,3.7959-0.7588,4.6865-1.5508l0.1982,2.3096c-1.3203,0.792-2.8711,1.4199-5.6768,1.4199c-3.7622,0-6.7329-2.9053-6.7329-7.8223c0-5.1494,2.8057-7.9219,6.6675-7.9219c4.5869,0,6.0068,2.377,6.0068,7.5586H51.8423z M59.5654,11.4531c-0.0996-2.9043-1.3867-3.4326-3.8613-3.4326c-0.6934,0-3.5756,0.1595-3.5981,3.4326H59.5654z"/>
+        <path d="M77.418,21.2227h-2.541c0,0,0.1318-3.4658,0.0986-6.4688c0,0,0-1.9805-0.0332-3.1689c-0.0654-2.2773-0.2637-3.4326-2.541-3.4326c-0.792,0-3.2959,0.5254-4.5547,3.0371v10.0332h-2.541v-10.793c0-1.1885-0.0332-2.2109-0.1318-2.9707L65.041,6.2715h2.3438l0.3965,2.2109c1.2207-1.4854,2.6074-2.6074,4.8516-2.6074c2.6729,0,4.4883,0.8584,4.752,3.9277c0.1328,1.4854,0.0996,2.9707,0.0996,4.4561C77.4844,16.7344,77.418,21.2227,77.418,21.2227z"/>
+        <path d="M89.8267,20.8594c-0.8916,0.3965-2.2773,0.792-3.4326,0.792c-1.9473,0-3.334-1.0889-3.334-3.7295V8.252H80.354V6.2715h2.7061V2.2773h2.4756v3.9941h3.9277V8.252h-3.9277v8.8447c0,1.6836,0.4287,2.3438,1.584,2.3438c0.792,0,1.585-0.3301,2.5088-0.6934L89.8267,20.8594z"/>
+        <path d="M98.604,14.1592c-0.8916,0-1.9805-0.0322-3.1025-0.165v7.2285H92.894V1.2871h6.4688c3.6641,0,6.7666,2.2451,6.7666,6.3047C106.1294,11.4863,102.3335,14.1592,98.604,14.1592z M98.4722,3.3994h-2.9707v8.4502c0,0,1.1885,0.1318,2.1123,0.1318c2.9375,0,5.5449-0.9902,5.5449-4.3896C103.1587,4.7861,101.6079,3.3994,98.4722,3.3994z"/>
+        <path d="M119.4272,21.2227c-0.165-0.4951-0.2979-0.9902-0.3633-1.4189l-0.0996-0.627c-1.2207,1.8477-2.7061,2.4746-4.5869,2.4746c-3.5977,0-6.4033-2.7061-6.4033-7.5576c0-5.1816,2.5088-8.2188,7.1621-8.2188c1.3535,0,2.8711,0.4297,3.7627,1.584l0.5605-1.1875h1.9805l-0.2305,2.1123v8.3828c0,1.123,0.3301,3.4004,0.6924,4.4561H119.4272z M118.6675,12.8721c0-3.333-1.2207-4.8184-3.4648-4.8184c-1.1885,0-4.5673,0.2922-4.4893,5.6768c0,4.291,1.9805,5.7432,4.0928,5.7432c1.6172,0,2.9043-1.1553,3.8613-3.4658V12.8721z"/>
+        <path d="M129.7222,21.6514c-1.6836,0-3.499-0.4287-4.6543-1.2207l0.2979-2.377c1.0889,0.6934,2.2109,1.5186,4.1582,1.5186c2.1123,0,3.1025-0.957,3.1025-2.1123c0-3.0361-7.459-2.8711-7.459-7.4922c0-2.2441,1.749-4.0928,5.3467-4.0928c1.9805,0,3.2676,0.5615,4.291,1.1221l-0.2646,2.377c-1.2871-1.1885-2.9375-1.4521-3.9932-1.4521c-1.6836,0-2.8389,0.6602-2.8389,1.8477c0,3.0039,7.459,2.7402,7.459,7.4922C135.1675,19.4736,133.5171,21.6514,129.7222,21.6514z"/>
+        <path d="M142.5591,21.6514c-1.6836,0-3.499-0.4287-4.6543-1.2207l0.2979-2.377c1.0889,0.6934,2.2109,1.5186,4.1582,1.5186c2.1123,0,3.1025-0.957,3.1025-2.1123c0-3.0361-7.459-2.8711-7.459-7.4922c0-2.2441,1.749-4.0928,5.3467-4.0928c1.9805,0,3.2676,0.5615,4.291,1.1221l-0.2646,2.377c-1.2871-1.1885-2.9375-1.4521-3.9932-1.4521c-1.6836,0-2.8389,0.6602-2.8389,1.8477c0,3.0039,7.459,2.7402,7.459,7.4922C148.0044,19.4736,146.354,21.6514,142.5591,21.6514z"/>
+        <path d="M150.1479,3.6973c0-1.4521,1.2217-2.6074,2.6406-2.6074c1.4521,0,2.6074,1.1875,2.6074,2.6074c0,1.4521-1.1553,2.6074-2.6074,2.6074C151.3696,6.3047,150.1479,5.1494,150.1479,3.6973z M150.7417,3.6973c0,1.1221,0.9248,2.0127,2.0469,2.0127s2.0127-0.8906,2.0127-2.0127s-0.8906-2.0137-2.0127-2.0137S150.7417,2.5752,150.7417,3.6973z M152.9868,4.5879l-0.4297-0.627h-0.1973v1.1553h-0.5283V2.2451h0.8574c0.5615,0,1.0898,0.1973,1.0898,0.8242c0,0.4629-0.2646,0.7266-0.627,0.8252c0.2969,0.4297,0.5938,0.8252,0.957,1.2217h-0.6934C153.4155,5.1162,153.2173,4.918,152.9868,4.5879z M152.3599,3.5322h0.4287c0.2637,0,0.4287-0.1328,0.4287-0.4297c0-0.2637-0.165-0.4287-0.4287-0.4287h-0.4287V3.5322z"/>
+      </g>
+    </svg>
+  );
+}
+
+/* =====================================================================
+   TOAST
+   ===================================================================== */
+const ToastContext = createContext(null);
+const useToast = () => useContext(ToastContext);
+
+function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+  const nextId = useRef(0);
+  const dismiss = useCallback((id) => setToasts((cur) => cur.filter((t) => t.id !== id)), []);
+  const showToast = useCallback((message, variant = 'success') => {
+    const id = nextId.current++;
+    setToasts((cur) => [...cur, { id, message, variant }]);
+    window.setTimeout(() => dismiss(id), 5000);
+  }, [dismiss]);
+  return (
+    <ToastContext.Provider value={{ showToast }}>
+      {children}
+      <div className="cv-toast-region" role="region" aria-live="polite" aria-label="Notifications">
+        {toasts.map((t) => (
+          <div key={t.id} className={`cv-toast cv-toast--${t.variant}`} role="status">
+            <span className="cv-toast__message">{t.message}</span>
+            <button type="button" className="cv-toast__close" aria-label="Dismiss notification" onClick={() => dismiss(t.id)}>
+              <Icon sprite="CLOSE" size="XS" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+/* =====================================================================
+   SHARED PIECES
+   ===================================================================== */
+function FavoriteStar({ state }) {
+  const sprite = state === 'none' ? 'STAR' : 'STAR_SOLID';
+  const label = state === 'favorite' ? 'Favorite' : state === 'org' ? 'Organization favorite' : 'Not a favorite';
+  return (
+    <span className={`cv-fav cv-fav--${state}`} role="img" aria-label={label} title={label}>
+      <Icon sprite={sprite} size="S" />
+    </span>
+  );
+}
+
+function QuickActions({ title, onPrint }) {
+  const { showToast } = useToast();
+  return (
+    <div className="cv-quick-actions">
+      <button type="button" className="cv-icon-btn" aria-label={`Print ${title}`} onClick={() => onPrint(title)}>
+        <Icon sprite="PRINTER" size="S" />
+      </button>
+      <button type="button" className="cv-icon-btn" aria-label={`Share ${title}`} onClick={() => showToast('Education has been sent to AVS.')}>
+        <Icon sprite="SHARE2" size="S" />
+      </button>
+    </div>
+  );
+}
+
+function EducationTable({ rows, showLastShared = false, onPrint }) {
+  return (
+    <table className="cv-table">
+      <thead>
+        <tr>
+          <th className="cv-table__col-fav" aria-label="Favorite" />
+          <th className="cv-table__col-title">Title</th>
+          {showLastShared && <th className="cv-table__col-shared">Last shared</th>}
+          <th className="cv-table__col-lang">Language</th>
+          <th className="cv-table__col-actions">
+            <span className="cv-table__actions-head">
+              Quick Actions <span className="cv-table__actions-sub">(Print/Share)</span>
+              <Icon sprite="INFORMATION_OUTLINE_CIRCLE" size="XS" />
+            </span>
+          </th>
+          <th className="cv-table__col-add">Add/<br />Remove</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.id}>
+            <td className="cv-table__col-fav"><FavoriteStar state={row.favorite} /></td>
+            <td className="cv-table__col-title"><a href="#" className="cv-link" onClick={(e) => e.preventDefault()}>{row.title}</a></td>
+            {showLastShared && <td className="cv-table__col-shared">{row.lastShared || ''}</td>}
+            <td className="cv-table__col-lang"><span className="cv-lang">{row.language}<Icon sprite="CHEVRON_DOWN" size="XS" /></span></td>
+            <td className="cv-table__col-actions"><QuickActions title={row.title} onPrint={onPrint} /></td>
+            <td className="cv-table__col-add">
+              <button type="button" className="cv-add-btn" aria-label={`Add ${row.title}`}><Icon sprite="PLUS" size="S" /></button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ClinicianHeader({ page, onNavigate }) {
+  return (
+    <header className="cv-header">
+      <div className="cv-header__inner">
+        <button type="button" className="cv-logo" onClick={() => onNavigate('home')} aria-label="PatientPass home">
+          <Logo />
+        </button>
+        <form className="cv-search" role="search" onSubmit={(e) => e.preventDefault()}>
+          <input className="cv-search__input" type="search" placeholder="Enter a search term" aria-label="Search" />
+          <button type="submit" className="cv-search__btn" aria-label="Search"><Icon sprite="SEARCH" size="S" /></button>
+        </form>
+        <nav className="cv-nav" aria-label="Primary">
+          <button type="button" className={`cv-nav__link${page === 'favorites' ? ' is-active' : ''}`} onClick={() => onNavigate('favorites')}>My Favorites</button>
+          <button type="button" className={`cv-nav__link${page === 'history' ? ' is-active' : ''}`} onClick={() => onNavigate('history')}>Education History</button>
+          <button type="button" className="cv-nav__cart" aria-label="Cart"><Icon sprite="SHOPPING_CART" size="M" /></button>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="cv-footer">
+      <div className="cv-footer__inner">
+        <div className="cv-footer__brand">ELSEVIER</div>
+        <div className="cv-footer__content">
+          <nav className="cv-footer__links" aria-label="Footer">
+            <a href="#" onClick={(e) => e.preventDefault()}>Terms and conditions</a>
+            <a href="#" onClick={(e) => e.preventDefault()}>Privacy policy</a>
+            <a href="#" onClick={(e) => e.preventDefault()}>Help</a>
+            <a href="#" onClick={(e) => e.preventDefault()}>Accessibility</a>
+            <a href="#" onClick={(e) => e.preventDefault()}>Cookie notice</a>
+          </nav>
+          <p className="cv-footer__copy">Copyright &copy; 2026 Elsevier Inc. or its licensors and contributors. All rights reserved, including those for text and data mining, AI training, and similar technologies.</p>
+        </div>
+        <div className="cv-footer__relx">RELX&trade;</div>
+      </div>
+    </footer>
+  );
+}
+
+/* =====================================================================
+   PRINT MODAL  (renders a printable document preview, then prints it)
+   ===================================================================== */
+function docHtml(title) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+  <style>
+    body { font-family: Georgia, "Times New Roman", serif; color:#222; margin:0; padding:48px 56px; line-height:1.5; }
+    .doc-head { border-bottom:3px solid #e9711c; padding-bottom:12px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:baseline; }
+    .doc-brand { color:#e9711c; font-weight:bold; font-family:Arial,sans-serif; letter-spacing:.5px; }
+    h1 { font-size:24px; margin:0 0 4px; }
+    .sub { color:#666; font-family:Arial,sans-serif; font-size:13px; margin-bottom:24px; }
+    h2 { font-size:16px; margin:22px 0 6px; color:#005f7e; font-family:Arial,sans-serif; }
+    p { margin:0 0 12px; }
+    ul { margin:0 0 12px 20px; }
+    .foot { margin-top:36px; border-top:1px solid #ccc; padding-top:10px; color:#888; font-size:11px; font-family:Arial,sans-serif; }
+  </style></head><body>
+    <div class="doc-head"><span class="doc-brand">PatientPass&reg;</span><span style="font-family:Arial,sans-serif;font-size:12px;color:#888;">Patient Education</span></div>
+    <h1>${title}</h1>
+    <div class="sub">Prepared for ${PATIENT_NAME} &middot; Reviewed by your care team</div>
+    <h2>Overview</h2>
+    <p>This handout explains what you need to know about your condition and care. Read it with your care team and ask questions about anything you do not understand. Keep this sheet for your records.</p>
+    <h2>What to expect</h2>
+    <p>Your care team will guide you through each step. Follow the instructions below and take any medications exactly as prescribed.</p>
+    <ul>
+      <li>Take all medications as directed by your provider.</li>
+      <li>Attend every scheduled follow-up appointment.</li>
+      <li>Track your symptoms and note any changes.</li>
+      <li>Maintain a balanced diet and stay hydrated.</li>
+    </ul>
+    <h2>When to call your provider</h2>
+    <p>Contact your care team right away if you have a fever, increased pain, swelling, or any symptom that worsens or does not improve.</p>
+    <div class="foot">&copy; 2026 Elsevier Inc. This material is for educational purposes and is not a substitute for professional medical advice.</div>
+  </body></html>`;
+}
+
+function PrintModal({ title, onClose }) {
+  const frameRef = useRef(null);
+  const handlePrint = () => {
+    const frame = frameRef.current;
+    if (frame && frame.contentWindow) {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    }
+  };
+  return (
+    <div className="cv-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="cv-modal" role="dialog" aria-modal="true" aria-label={`Print ${title}`}>
+        <button type="button" className="cv-modal__close" aria-label="Close modal" onClick={onClose}><Icon sprite="CLOSE" size="S" /></button>
+        <div className="cv-print-modal__body">
+          <h2 className="cv-print-modal__title">Print education</h2>
+          <p className="cv-print-modal__subtitle">{title}</p>
+          <iframe ref={frameRef} className="cv-print-modal__preview" title={`Preview of ${title}`} srcDoc={docHtml(title)} />
+          <div className="cv-print-modal__actions">
+            <button type="button" className="cv-btn cv-btn--secondary" onClick={onClose}>Cancel</button>
+            <button type="button" className="cv-btn cv-btn--primary" onClick={handlePrint}>Print</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =====================================================================
+   PAGES
+   ===================================================================== */
+const SHOW_ONLY = [
+  { label: 'Documents', icon: null },
+  { label: 'Videos', icon: 'VIDEO_CAMERA' },
+  { label: 'Custom Ed', icon: 'INSTITUTION' },
+  { label: 'My Favorites', icon: 'STAR_SOLID' },
+  { label: 'Org Favorites', icon: 'STAR' },
+];
+
+function Sidebar() {
+  return (
+    <aside className="cv-sidebar">
+      <div className="cv-sidebar__head"><span>Clinical Context Search</span><Icon sprite="INFORMATION_OUTLINE_CIRCLE" size="XS" /></div>
+      {CLINICAL_CONTEXT.map((group) => (
+        <div key={group.label} className="cv-context-group">
+          <button type="button" className="cv-context-group__toggle">
+            <span className="cv-context-group__label">{group.label}</span>
+            <span className="cv-pill">{group.count}</span>
+            <Icon sprite={group.open ? 'CHEVRON_UP' : 'CHEVRON_DOWN'} size="S" />
+          </button>
+          {group.open && group.items.length > 0 && (
+            <ul className="cv-context-group__items">
+              {group.items.map((item) => (
+                <li key={item}><a href="#" className={`cv-context-link${item === group.active ? ' is-active' : ''}`} onClick={(e) => e.preventDefault()}>{item}</a></li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </aside>
+  );
+}
+
+function FiltersBar() {
+  return (
+    <div className="cv-filters">
+      <div className="cv-filters__row">
+        <span className="cv-filters__label">Education filters- <strong>show only:</strong><Icon sprite="INFORMATION_OUTLINE_CIRCLE" size="XS" /></span>
+        <a href="#" className="cv-link" onClick={(e) => e.preventDefault()}>Save as default</a>
+        <a href="#" className="cv-link cv-filters__clear" onClick={(e) => e.preventDefault()}>Clear all</a>
+      </div>
+      <div className="cv-filters__checks">
+        {SHOW_ONLY.map((opt) => (
+          <label key={opt.label} className="cv-check"><input type="checkbox" /><span>{opt.label}</span>{opt.icon && <Icon sprite={opt.icon} size="XS" />}</label>
+        ))}
+      </div>
+      <div className="cv-filters__patient">
+        Patient filters for <strong>{PATIENT_NAME}:</strong>
+        <span className="cv-filters__chip">Female <Icon sprite="CHEVRON_DOWN" size="XS" /></span>
+        <span className="cv-filters__chip">Aged (56 to 79 years) <Icon sprite="CHEVRON_DOWN" size="XS" /></span>
+      </div>
+    </div>
+  );
+}
+
+function HomePagination() {
+  return (
+    <nav className="cv-pagination" aria-label="Pagination">
+      <button type="button" className="cv-pagination__edge" aria-label="First page" disabled><Icon sprite="CHEVRON_LEFT" size="XS" /><Icon sprite="CHEVRON_LEFT" size="XS" /></button>
+      <button type="button" className="cv-pagination__nav" disabled><Icon sprite="CHEVRON_LEFT" size="XS" /> Previous</button>
+      <button type="button" className="cv-pagination__page is-active">1</button>
+      <button type="button" className="cv-pagination__page">2</button>
+      <button type="button" className="cv-pagination__page">3</button>
+      <button type="button" className="cv-pagination__nav">Next <Icon sprite="CHEVRON_RIGHT" size="XS" /></button>
+      <button type="button" className="cv-pagination__edge" aria-label="Last page"><Icon sprite="CHEVRON_RIGHT" size="XS" /><Icon sprite="CHEVRON_RIGHT" size="XS" /></button>
+    </nav>
+  );
+}
+
+function Homescreen({ onPrint }) {
+  return (
+    <div className="cv-home">
+      <Sidebar />
+      <main className="cv-home__content">
+        <FiltersBar />
+        <div className="cv-home__results">
+          <p className="cv-results-summary">Search results 1-10 of 30 for <strong>"Kidney Transplant, Optimal Coping with Organ Transplant"</strong></p>
+          <EducationTable rows={EDUCATION_ROWS} showLastShared onPrint={onPrint} />
+          <HomePagination />
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function MyFavorites({ onPrint }) {
+  return (
+    <main className="cv-favorites">
+      <h1 className="cv-favorites__title">My Favorites</h1>
+      <div className="cv-favorites__columns">
+        <section className="cv-favorites__col">
+          <h2 className="cv-favorites__heading">Documents</h2>
+          <EducationTable rows={FAVORITES_LEFT} onPrint={onPrint} />
+        </section>
+        <div className="cv-favorites__divider" aria-hidden="true" />
+        <section className="cv-favorites__col">
+          <h2 className="cv-favorites__heading">Documents</h2>
+          <EducationTable rows={FAVORITES_RIGHT} onPrint={onPrint} />
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function HistoryPagination() {
+  return (
+    <nav className="cv-pagination" aria-label="Pagination">
+      <button type="button" className="cv-pagination__nav" disabled><Icon sprite="CHEVRON_LEFT" size="XS" /> Previous</button>
+      {[1, 2, 3, 4, 5].map((p) => (<button key={p} type="button" className={`cv-pagination__page${p === 1 ? ' is-active' : ''}`}>{p}</button>))}
+      <button type="button" className="cv-pagination__nav">Next <Icon sprite="CHEVRON_RIGHT" size="XS" /></button>
+    </nav>
+  );
+}
+
+function EducationHistory() {
+  return (
+    <main className="cv-history">
+      <h1 className="cv-history__title">Patient Education History for <strong>{HISTORY_PATIENT_NAME}</strong></h1>
+      <table className="cv-history-table">
+        <thead>
+          <tr>
+            <th className="cv-history-table__date"><span className="cv-sortable">Date shared <Icon sprite="CHEVRON_DOWN" size="XS" /></span></th>
+            <th><span className="cv-th-info">Title <Icon sprite="INFORMATION_OUTLINE_CIRCLE" size="XS" /></span></th>
+            <th>Delivery method</th>
+            <th>Patient progress</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {HISTORY_ROWS.map((row) => (
+            <tr key={row.id}>
+              <td className="cv-history-table__date">{row.dateShared}</td>
+              <td>
+                <ul className="cv-history-titles">
+                  {row.titles.map((t, i) => (
+                    <li key={i}>
+                      <span className={`cv-status-dot cv-status-dot--${t.status}`} aria-hidden="true" />
+                      <a href="#" className={`cv-link${t.status === 'deleted' ? ' cv-link--deleted' : ''}`} onClick={(e) => e.preventDefault()}>{t.text}</a>
+                      <span className="cv-history-lang">({t.language})</span>
+                      {t.hasVideo && <Icon sprite="VIDEO_CAMERA" size="XS" />}
+                    </li>
+                  ))}
+                </ul>
+              </td>
+              <td>
+                {row.deliveryDeleted && (<span className="cv-delivery-deleted"><Icon sprite="EYE_NOT_VISIBLE" size="XS" />Assignment deleted</span>)}
+                <span className="cv-delivery-method">{row.deliveryMethod}</span>
+              </td>
+              <td><span className={`cv-progress cv-progress--${row.progress}`}>{PROGRESS_LABEL[row.progress]}</span></td>
+              <td><button type="button" className="cv-icon-btn" aria-label="More actions"><Icon sprite="ELLIPSIS" size="S" /></button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <HistoryPagination />
+    </main>
+  );
+}
+
+/* =====================================================================
+   APP
+   ===================================================================== */
+function App() {
+  const [page, setPage] = useState('home');
+  const [printTitle, setPrintTitle] = useState(null);
+  return (
+    <ToastProvider>
+      <div className="cv-page">
+        <ClinicianHeader page={page} onNavigate={(p) => { setPrintTitle(null); setPage(p); }} />
+        {page === 'home' && <Homescreen onPrint={setPrintTitle} />}
+        {page === 'favorites' && <MyFavorites onPrint={setPrintTitle} />}
+        {page === 'history' && <EducationHistory />}
+        <Footer />
+        {printTitle && <PrintModal title={printTitle} onClose={() => setPrintTitle(null)} />}
+      </div>
+    </ToastProvider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
